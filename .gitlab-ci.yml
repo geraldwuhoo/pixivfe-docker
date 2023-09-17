@@ -1,0 +1,65 @@
+stages:
+  - clone
+  - build
+  - push
+
+variables:
+  DOCKERIO_MIRROR: hub.wuhoo.xyz
+
+clone:
+  stage: clone
+  image:
+    name: docker.io/bitnami/git:2.41.0-debian-11-r2
+  before_script:
+    - rm -rf ./pixivfe/
+  script:
+    - git clone "https://codeberg.org/VnPower/pixivfe.git"
+  artifacts:
+    untracked: true
+    expire_in: 1 day
+    paths:
+      - pixivfe/
+    when: on_success
+
+build:
+  stage: build
+  image:
+    name: gcr.io/kaniko-project/executor:v1.9.2-debug
+    entrypoint: [""]
+  before_script:
+    - mkdir -p /kaniko/.docker
+    - echo "{\"auths\":{\"${CI_REGISTRY}\":{\"auth\":\"$(printf "%s:%s" "${CI_REGISTRY_USER}" "${CI_REGISTRY_PASSWORD}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
+  script:
+    - >-
+      /kaniko/executor
+      --registry-mirror "${DOCKERIO_MIRROR}"
+      --cache=true
+      --cache-repo "${CI_REGISTRY_IMAGE}/build-cache"
+      --cache-ttl 168h0m0s
+      --context "${CI_PROJECT_DIR}/pixivfe"
+      --dockerfile "${CI_PROJECT_DIR}/pixivfe/Dockerfile"
+      --destination=image
+      --no-push
+      --tarPath image.tar
+  needs:
+    - clone
+  artifacts:
+    untracked: false
+    expire_in: 1 day
+    paths:
+      - image.tar
+    when: on_success
+
+push:
+  stage: push
+  image:
+    name: gcr.io/go-containerregistry/crane/debug:v0.15.2
+    entrypoint: [""]
+  script:
+    - crane auth login -u ${CI_REGISTRY_USER} -p ${CI_REGISTRY_PASSWORD} ${CI_REGISTRY}
+    - crane push image.tar ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}
+    - crane push image.tar ${CI_REGISTRY_IMAGE}:latest
+  needs:
+    - build
+  rules:
+    - if: $CI_COMMIT_REF_NAME == $CI_DEFAULT_BRANCH
