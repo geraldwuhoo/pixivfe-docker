@@ -9,7 +9,7 @@ variables:
 clone:
   stage: clone
   image:
-    name: docker.io/bitnami/git:2.42.0-debian-11-r2
+    name: docker.io/bitnami/git:2.43.0-debian-11-r2
   before_script:
     - rm -rf ./pixivfe/
   script:
