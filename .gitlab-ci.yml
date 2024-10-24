@@ -11,7 +11,7 @@ variables:
 .clone:
   stage: clone
   image:
-    name: docker.io/bitnami/git:2.43.0-debian-11-r2
+    name: docker.io/bitnami/git:2.47.0-debian-12-r1
   before_script:
   script:
     - rm -rf ./pixivfe-${MAIN_BRANCH}/ ./pixiv-${V2_BRANCH}/
